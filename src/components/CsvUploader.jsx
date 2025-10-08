@@ -25,6 +25,26 @@ export default
                 return 'Missing required headers: ' + missingHeaders.join(', ');
             }
         }
+        // Validate rows
+        const validateRows = (row, rowIndex) => {
+            const errors = [];
+            const { name, email, age } = row;
+
+            if (!name) {
+                errors.push(`Row ${rowIndex + 1}: 'name' cannot be empty.`);
+            }
+
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (email && !emailRegex.test(email)) {
+                errors.push(`Row ${rowIndex + 1}: 'email' is not valid.`);
+            }
+
+            if (!age || isNaN(age)) {
+                errors.push(`Row ${rowIndex + 1}: 'age' must be a number.`);
+            }
+
+            return errors;
+        }
 
         // Parse CSV file
         const handleParse = () => {
@@ -36,7 +56,7 @@ export default
                 complete: (results) => {
                     setParsedData(results.data);
                     const errors = [];
-
+                    // Validates headers
                     const headerError = validateHeaders(results.meta.fields);
                     if (headerError) {
                         errors.push(headerError);
@@ -45,7 +65,24 @@ export default
                         setParsedData([]);
                         return;
                     }
+                    // Validates each row
+                    const rowErrors = results.data.flatMap(validateRows);
+                    if (rowErrors.length > 0) {
+                        errors.push(...rowErrors);
+                        setValidationErrors(errors);
+                        setIsValid(false);
+                        setParsedData([]);
+                    } else {
+                        setValidationErrors([]);
+                        setIsValid(true);
+                       // setParsedData(results.data);
+                    }
                 },
+                error: (error) => {
+                    setValidationErrors(['Error parsing CSV file: ' + error.message]);
+                    setIsValid(false);
+                    setParsedData([]);
+                }
             });
         }
         
@@ -72,17 +109,22 @@ export default
     return (
         <div className="w-full max-w-4xl mx-auto p-8 text-gray-700 bg-gray-200 shadow-md rounded-md">
             <h2 className="text-lg text-center font-semibold text-gray-700 mb-3">Upload your CSV file</h2>
+            <p className="mb-2">
+                <span className="font-semibold text-gray-700 pl-2">Expected headers are:</span>
+                <span className="text-purple-600"> name, email, and age.</span>
+            </p>
             <input 
                 type="file" 
                 accept=".csv" 
                 onChange={handleFileChange} 
                 ref={fileInput}
-                className="border border-gray-300 p-2 rounded text-center w-full"
+                className="border border-gray-300 p-2 rounded text-left w-full"
+                placeholder='Choose CSV file'
             />
             
             {parsedData.length > 0 && (
                 <div className="relative overflow-x-auto">
-                    <h3 className="text-md text-left font-semibold text-gray-700 mb-2 mt-8">Parsed CSV Data:</h3> {/* Display parsed data in a table */}
+                    <h3 className="text-md text-left font-semibold text-gray-700 mb-2 mt-8 pl-4">Parsed CSV Data:</h3> {/* Display parsed data in a table */}
                         <table className="border-collapse border border-gray-700 w-full p-6 rounded-md">
                             <thead className="text-md text-left bg-gray-700 text-gray-100">
                                 <tr className="px-6 py-4 border border-gray-300">
@@ -106,11 +148,11 @@ export default
             )}
             {validationErrors.length > 0 && (
                 <div>
-                    <h4 className="text-red-600 mt-4">Validation Errors:</h4>
+                    <h4 className="text-red-600 mt-4 pl-4">Validation Errors:</h4>
                     <ul className="text-gray-700">
                         {validationErrors.map((error, index) => (
                             <li 
-                                className="font-semibold" 
+                                className="font-semibold pl-4" 
                                 key={index}>{error}
                             </li>
                         ))}
@@ -118,9 +160,9 @@ export default
                 </div>
             )}
             {isValid && parsedData.length > 0 && (
-                <div style={{ color: 'green' }}>
-                    <h4>CSV data is valid!</h4>
-                    <pre>{JSON.stringify(parsedData, null, 2)}</pre>
+                <div>
+                    <h4 className="text-green-600 mt-4 font-semibold pl-4">CSV data is valid!</h4>
+                    {/* <pre>{JSON.stringify(parsedData, null, 2)}</pre> */}
                 </div>
             )}
             {selectedFile && (
